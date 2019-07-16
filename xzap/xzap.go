@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -28,11 +29,20 @@ func NewZLog(outputPaths []string, level zapcore.Level) (*ZLog,error){
 		return zl,err
 	}
 
+	instNo := os.Getenv("INST_NO")
+	if instNo=="" {
+		instNo = "1"
+	}
 	errorOutPaths := []string{}
-	for _,v := range outputPaths {
+	for k,v := range outputPaths {
 		if v == "stderr" || v == "stdin" || v == "stdout" {
 			continue
 		}
+		ps := strings.Split(v,".")
+		ps[0] = ps[0] + "-" + instNo
+		v = strings.Join(ps,".")
+
+		outputPaths[k] = v
 		errorOutPaths = append(errorOutPaths, v + ".error")
 	}
 
@@ -92,7 +102,7 @@ func (this *ZLog) init() (err error) {
 		})),
 	)
 
-	this.log = zap.New(core)
+	this.log = zap.New(core,zap.AddCaller(),zap.AddStacktrace(zap.ErrorLevel))
 	this.log = this.log.WithOptions(zap.AddCallerSkip(1))
 
 	return
@@ -122,9 +132,9 @@ func (this *ZLog) splitByTime() {
 			time.Sleep(200 * time.Millisecond)
 
 			//每分钟写入一个测试日志
-			if time.Now().Second() == 0 {
+			/*if time.Now().Second() == 0 {
 				this.Debug("zlog")
-			}
+			}*/
 
 			//整点切换文件
 			if time.Now().Minute() == 59 {
@@ -133,6 +143,7 @@ func (this *ZLog) splitByTime() {
 					continue
 				}
 				lastSplitHour = currHour
+
 				for _,file := range this.outputPaths{
 					_,err := os.Stat(file)
 					if err == nil {
@@ -145,6 +156,21 @@ func (this *ZLog) splitByTime() {
 						}
 					}
 				}
+				if currHour == 23 {
+					for _,file := range this.errorOutPaths{
+						_,err := os.Stat(file)
+						if err == nil {
+							newFile := file + "." + time.Now().Format("2006-01-02_15")
+							err = os.Rename(file, newFile)
+							if err != nil {
+								fmt.Println(err)
+							}else{
+								fmt.Println("RenameFile", newFile)
+							}
+						}
+					}
+				}
+
 				this.log.Sync()
 				this.closeOutputPathsFunc()
 				this.closeErrorOutPathsFunc()
