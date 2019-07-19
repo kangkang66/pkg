@@ -1,6 +1,29 @@
 # pkg
 go语言工具包
 
+## report
+错误日志报警
+
+```
+config := &ErrorLogReportConfig{
+    //每秒钟，20次错误上报一次
+    SecondMaxNumToReport:20,
+    //每分钟，20次错误上报一次
+    MinuteMaxNumToReport:20,
+    //每小时，20次错误上报一次
+    HourMaxNumToReport:20,
+    //每次上报间隔秒数
+    MinTimeToReport:10,
+}
+
+e := NewErrorLogReport(config)
+go e.Reset()
+for {
+    e.WriteMinute("kang")
+    time.Sleep(50 * time.Millisecond)
+}
+```
+
 ## xaes
 go版本实现aes的加解密
 ```
